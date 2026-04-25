@@ -2,26 +2,24 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Fortnite Drop COMPETITIVO</title>
+<title>Fortnite Drop PRO PLAYER</title>
 
 <style>
-body { margin:0; background:#020617; color:white; font-family:Arial; text-align:center; }
-canvas { border:2px solid #1e293b; margin-top:10px; background:url('mapa.png') center/cover; cursor:grab; }
-button { margin:5px; padding:10px; border:none; background:#22c55e; color:white; border-radius:6px; }
-button:hover { background:#16a34a; }
+body {margin:0;background:#020617;color:white;font-family:Arial;text-align:center;}
+canvas {border:2px solid #1e293b;margin-top:10px;background:url('mapa.png') center/cover;}
+button {margin:5px;padding:10px;background:#22c55e;border:none;color:white;border-radius:6px;}
 </style>
 </head>
 
 <body>
 
-<h2>Fortnite Drop Calculator COMPETITIVO</h2>
+<h2>Drop Calculator PRO PLAYER</h2>
 
-<button onclick="mode='start'">Início ônibus</button>
-<button onclick="mode='end'">Fim ônibus</button>
+<button onclick="mode='start'">Início</button>
+<button onclick="mode='end'">Fim</button>
 <button onclick="mode='drop'">Drop</button>
-<button onclick="resetAll()">Reset</button>
-
-<div id="info">Modo competitivo ativo</div>
+<button onclick="strategy='fast'">Agressivo</button>
+<button onclick="strategy='safe'">Seguro</button>
 
 <canvas id="map" width="900" height="600"></canvas>
 
@@ -29,122 +27,96 @@ button:hover { background:#16a34a; }
 const canvas = document.getElementById("map");
 const ctx = canvas.getContext("2d");
 
-let mode="start", busStart=null, busEnd=null, drop=null;
+let mode="start", strategy="fast";
+let busStart=null, busEnd=null, drop=null;
 
-// física
-const gravity = 0.25;
-const maxSpeed = 9;
-const glideSpeed = 3.2;
-const deployDist = 220;
-const busSpeed = 5.5;
+// física calibrável
+let gravity=0.22;
+let maxSpeed=9;
+let glideSpeed=3.2;
+let deployDist=220;
 
-// zoom
-let scale=1, offsetX=0, offsetY=0, drag=false, lx,ly;
+// simulação detalhada
+function simulate(distance){
+  let speed=0;
+  let d=0;
+  let t=0;
 
-canvas.onwheel = e=>{
-  e.preventDefault();
-  scale *= e.deltaY<0?1.1:0.9;
-  draw();
-};
+  while(d < distance){
+    speed += gravity;
+    if(speed > maxSpeed) speed = maxSpeed;
 
-canvas.onmousedown=e=>{ drag=true; lx=e.clientX; ly=e.clientY; };
-canvas.onmouseup=()=>drag=false;
-
-canvas.onmousemove=e=>{
-  if(!drag)return;
-  offsetX+=e.clientX-lx;
-  offsetY+=e.clientY-ly;
-  lx=e.clientX; ly=e.clientY;
-  draw();
-};
-
-canvas.onclick=e=>{
-  const r=canvas.getBoundingClientRect();
-  const x=(e.clientX-r.left-offsetX)/scale;
-  const y=(e.clientY-r.top-offsetY)/scale;
-
-  if(mode==="start")busStart={x,y};
-  if(mode==="end")busEnd={x,y};
-  if(mode==="drop")drop={x,y};
-
-  draw();
-};
-
-function resetAll(){
-  busStart=busEnd=drop=null;
-  scale=1; offsetX=offsetY=0;
-  draw();
-}
-
-const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
-const norm=v=>{let l=Math.hypot(v.x,v.y); return {x:v.x/l,y:v.y/l};};
-
-// simulação física real
-function simulateTime(distance){
-  let speed=0, d=0, t=0;
-
-  while(d<distance){
-    speed+=gravity;
-    if(speed>maxSpeed) speed=maxSpeed;
-    d+=speed;
-    t++;
+    d += speed;
+    t += 1;
   }
+
   return t;
 }
 
-// 🧠 TESTA VÁRIOS PONTOS E PEGA O MELHOR
-function findBestJump(){
+// cálculo com estratégia
+function evaluate(point){
+  let d = Math.hypot(point.x-drop.x, point.y-drop.y);
+
+  let fall = Math.max(0, d - deployDist);
+
+  let tFall = simulate(fall);
+  let tGlide = deployDist / glideSpeed;
+
+  let total = tFall + tGlide;
+
+  // estratégia muda decisão
+  if(strategy === "safe"){
+    total += 15; // penaliza pulo arriscado
+  }
+
+  return total;
+}
+
+// busca refinada
+function findBest(){
   if(!busStart||!busEnd||!drop) return null;
 
-  const dir = norm({x:busEnd.x-busStart.x,y:busEnd.y-busStart.y});
+  let best=null;
+  let bestScore=Infinity;
 
-  let bestPoint=null;
-  let bestTime=Infinity;
+  for(let i=0;i<=300;i++){
+    let t=i/300;
 
-  // testa 200 pontos ao longo da linha
-  for(let i=0;i<200;i++){
-    let t=i/200;
-
-    let point={
+    let p={
       x: busStart.x + (busEnd.x-busStart.x)*t,
       y: busStart.y + (busEnd.y-busStart.y)*t
     };
 
-    let d = dist(point, drop);
+    let score = evaluate(p);
 
-    let fallDist = Math.max(0, d-deployDist);
-
-    let timeFall = simulateTime(fallDist);
-    let timeGlide = deployDist/glideSpeed;
-
-    let total = timeFall + timeGlide;
-
-    if(total < bestTime){
-      bestTime = total;
-      bestPoint = point;
+    if(score < bestScore){
+      bestScore = score;
+      best = p;
     }
   }
 
-  return bestPoint;
+  return best;
 }
 
-function drawPoint(p,c,l){
-  if(!p)return;
+// desenho
+function drawPoint(p,c,label){
+  if(!p) return;
+
   ctx.fillStyle=c;
   ctx.beginPath();
   ctx.arc(p.x,p.y,10,0,6.28);
   ctx.fill();
 
-  if(l){
+  if(label){
     ctx.fillStyle="black";
     ctx.fillRect(p.x-30,p.y-30,60,20);
     ctx.fillStyle="white";
-    ctx.fillText(l,p.x,p.y-15);
+    ctx.fillText(label,p.x,p.y-15);
   }
 }
 
 function drawLine(a,b,c){
-  if(!a||!b)return;
+  if(!a||!b) return;
   ctx.strokeStyle=c;
   ctx.lineWidth=3;
   ctx.beginPath();
@@ -153,16 +125,27 @@ function drawLine(a,b,c){
   ctx.stroke();
 }
 
+canvas.onclick=e=>{
+  const r=canvas.getBoundingClientRect();
+  const x=e.clientX-r.left;
+  const y=e.clientY-r.top;
+
+  if(mode==="start") busStart={x,y};
+  if(mode==="end") busEnd={x,y};
+  if(mode==="drop") drop={x,y};
+
+  draw();
+};
+
 function draw(){
-  ctx.setTransform(scale,0,0,scale,offsetX,offsetY);
-  ctx.clearRect(-offsetX/scale,-offsetY/scale,canvas.width/scale,canvas.height/scale);
+  ctx.clearRect(0,0,900,600);
 
   drawLine(busStart,busEnd,"yellow");
   drawPoint(busStart,"blue");
   drawPoint(busEnd,"purple");
   drawPoint(drop,"red");
 
-  let best = findBestJump();
+  let best = findBest();
 
   drawPoint(best,"orange","PULAR");
   drawLine(best,drop,"white");
