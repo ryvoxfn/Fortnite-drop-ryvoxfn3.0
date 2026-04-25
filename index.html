@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Fortnite Drop PRO</title>
+<title>Fortnite Drop ULTRA</title>
 
 <style>
 body {
@@ -13,9 +13,7 @@ body {
   text-align: center;
 }
 
-h2 {
-  margin-top: 10px;
-}
+h2 { margin-top: 10px; }
 
 canvas {
   border: 2px solid #1e293b;
@@ -34,37 +32,56 @@ button {
   border-radius: 6px;
 }
 
-button:hover {
-  background: #16a34a;
-}
+button:hover { background: #16a34a; }
 
 .info {
   margin-top: 10px;
+  font-size: 14px;
 }
 </style>
 </head>
 
 <body>
 
-<h2>Fortnite Drop Calculator PRO</h2>
+<h2>Fortnite Drop Calculator ULTRA</h2>
 
 <button onclick="mode='start'">Início ônibus</button>
 <button onclick="mode='end'">Fim ônibus</button>
 <button onclick="mode='drop'">Seu drop</button>
+<button onclick="resetAll()">Resetar</button>
 
-<div class="info" id="info"></div>
+<div class="info" id="info">Clique nos botões e depois no mapa</div>
 
 <canvas id="map" width="900" height="600"></canvas>
+
+<!-- 🔥 APOIO -->
+<div style="
+  margin-top: 15px;
+  padding: 10px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  display: inline-block;
+">
+  <span style="color:#94a3b8;">Apoie o criador:</span>
+  <strong style="color:#22c55e;"> KLGAMERYT03 </strong>
+  <span>na loja do Fortnite 🎮</span>
+</div>
 
 <script>
 const canvas = document.getElementById("map");
 const ctx = canvas.getContext("2d");
 
 let mode = "start";
-
 let busStart = null;
 let busEnd = null;
 let drop = null;
+
+// 🔥 PARÂMETROS AJUSTÁVEIS
+const diveSpeed = 6.5;
+const glideSpeed = 2.2;
+const glideDistance = 180;
+const busSpeedFactor = 4;
 
 canvas.addEventListener("click", (e) => {
   const rect = canvas.getBoundingClientRect();
@@ -78,101 +95,127 @@ canvas.addEventListener("click", (e) => {
   draw();
 });
 
-function distance(a, b){
+function resetAll(){
+  busStart = null;
+  busEnd = null;
+  drop = null;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  document.getElementById("info").innerText = "Resetado!";
+}
+
+function distance(a,b){
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-// 🔥 PROJEÇÃO REAL NA LINHA DO ÔNIBUS
-function projectionPoint(A, B, P){
-  const APx = P.x - A.x;
-  const APy = P.y - A.y;
+function normalize(v){
+  const len = Math.hypot(v.x, v.y);
+  return {x: v.x/len, y: v.y/len};
+}
 
-  const ABx = B.x - A.x;
-  const ABy = B.y - A.y;
+function projectionPoint(A,B,P){
+  const AP = {x:P.x-A.x, y:P.y-A.y};
+  const AB = {x:B.x-A.x, y:B.y-A.y};
 
-  const ab2 = ABx*ABx + ABy*ABy;
-  const ap_ab = APx*ABx + APy*ABy;
-
-  const t = ap_ab / ab2;
+  const t = (AP.x*AB.x + AP.y*AB.y)/(AB.x*AB.x + AB.y*AB.y);
 
   return {
-    x: A.x + ABx * t,
-    y: A.y + ABy * t
+    x: A.x + AB.x*t,
+    y: A.y + AB.y*t
   };
 }
 
-// 🔥 CÁLCULO REALISTA DE SALTO
+// 🧠 CÁLCULO AVANÇADO
 function calculateJump(){
   if (!busStart || !busEnd || !drop) return null;
 
   const proj = projectionPoint(busStart, busEnd, drop);
 
-  const dist = distance(proj, drop);
+  const dir = normalize({
+    x: busEnd.x - busStart.x,
+    y: busEnd.y - busStart.y
+  });
 
-  // ajuste baseado na distância (simula tempo de queda)
-  const factor = 0.35;
+  const totalDist = distance(proj, drop);
+
+  const diveDist = Math.max(0, totalDist - glideDistance);
+
+  const timeDive = diveDist / diveSpeed;
+  const timeGlide = glideDistance / glideSpeed;
+
+  const totalTime = timeDive + timeGlide;
+
+  const offset = totalTime * busSpeedFactor;
 
   return {
-    x: proj.x - (busEnd.x - busStart.x) * factor,
-    y: proj.y - (busEnd.y - busStart.y) * factor
+    x: proj.x - dir.x * offset,
+    y: proj.y - dir.y * offset
   };
 }
 
-// 🪂 GLIDER (mais preciso)
 function calculateGlider(){
-  if (!drop || !busStart) return null;
+  if (!drop) return null;
 
-  const d = distance(busStart, drop);
-
-  const offset = Math.min(120, d * 0.25);
+  const dir = normalize({
+    x: drop.x - (busStart?.x || 0),
+    y: drop.y - (busStart?.y || 0)
+  });
 
   return {
-    x: drop.x - offset,
-    y: drop.y - offset
+    x: drop.x - dir.x * glideDistance,
+    y: drop.y - dir.y * glideDistance
   };
 }
 
-function drawPoint(p, color){
+function drawPoint(p,color,label=null){
   if (!p) return;
+
   ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.arc(p.x, p.y, 6, 0, Math.PI*2);
+  ctx.arc(p.x,p.y,10,0,Math.PI*2);
   ctx.fill();
+
+  if(label){
+    ctx.fillStyle="white";
+    ctx.font="bold 14px Arial";
+    ctx.textAlign="center";
+    ctx.fillText(label,p.x,p.y-15);
+  }
 }
 
-function drawLine(a, b, color){
+function drawLine(a,b,color){
   if (!a || !b) return;
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 2;
+
+  ctx.strokeStyle=color;
+  ctx.lineWidth=2;
   ctx.beginPath();
-  ctx.moveTo(a.x, a.y);
-  ctx.lineTo(b.x, b.y);
+  ctx.moveTo(a.x,a.y);
+  ctx.lineTo(b.x,b.y);
   ctx.stroke();
 }
 
 function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  drawLine(busStart, busEnd, "yellow");
+  drawLine(busStart,busEnd,"yellow");
 
-  drawPoint(busStart, "blue");
-  drawPoint(busEnd, "purple");
-  drawPoint(drop, "red");
+  drawPoint(busStart,"blue");
+  drawPoint(busEnd,"purple");
+  drawPoint(drop,"red");
 
   const jump = calculateJump();
   const glide = calculateGlider();
 
-  drawPoint(jump, "orange");
-  drawPoint(glide, "green");
+  drawPoint(jump,"orange","PULAR");
+  drawPoint(glide,"green","GLIDER");
 
-  drawLine(jump, drop, "white");
+  drawLine(jump,drop,"white");
 
-  if(jump && glide){
+  if (busStart && drop){
+    const d = distance(busStart, drop).toFixed(0);
     document.getElementById("info").innerText =
-      "🟠 Salte aqui | 🟢 Abra o glider";
+      `Sistema avançado ativo | Distância: ${d}px`;
   }
 }
-
 </script>
 
 </body>
