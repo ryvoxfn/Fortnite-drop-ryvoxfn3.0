@@ -54,7 +54,6 @@ button:hover { background: #16a34a; }
 
 <canvas id="map" width="900" height="600"></canvas>
 
-<!-- 🔥 APOIO -->
 <div style="
   margin-top: 15px;
   padding: 10px;
@@ -77,7 +76,6 @@ let busStart = null;
 let busEnd = null;
 let drop = null;
 
-// 🔥 PARÂMETROS AJUSTÁVEIS
 const diveSpeed = 6.5;
 const glideSpeed = 2.2;
 const glideDistance = 180;
@@ -124,7 +122,6 @@ function projectionPoint(A,B,P){
   };
 }
 
-// 🧠 CÁLCULO AVANÇADO
 function calculateJump(){
   if (!busStart || !busEnd || !drop) return null;
 
@@ -136,14 +133,12 @@ function calculateJump(){
   });
 
   const totalDist = distance(proj, drop);
-
   const diveDist = Math.max(0, totalDist - glideDistance);
 
   const timeDive = diveDist / diveSpeed;
   const timeGlide = glideDistance / glideSpeed;
 
   const totalTime = timeDive + timeGlide;
-
   const offset = totalTime * busSpeedFactor;
 
   return {
@@ -156,8 +151,8 @@ function calculateGlider(){
   if (!drop) return null;
 
   const dir = normalize({
-    x: drop.x - (busStart?.x || 0),
-    y: drop.y - (busStart?.y || 0)
+    x: drop.x - (busStart ? busStart.x : 0),
+    y: drop.y - (busStart ? busStart.y : 0)
   });
 
   return {
