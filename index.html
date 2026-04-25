@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Fortnite Drop PRO</title>
+
+<style>
+body {
+  margin: 0;
+  background: #020617;
+  color: white;
+  font-family: Arial;
+  text-align: center;
+}
+
+h2 {
+  margin-top: 10px;
+}
+
+canvas {
+  border: 2px solid #1e293b;
+  margin-top: 10px;
+  background: url('mapa.png') no-repeat center;
+  background-size: cover;
+}
+
+button {
+  margin: 5px;
+  padding: 10px;
+  border: none;
+  background: #22c55e;
+  color: white;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+button:hover {
+  background: #16a34a;
+}
+
+.info {
+  margin-top: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>Fortnite Drop Calculator PRO</h2>
+
+<button onclick="mode='start'">Início ônibus</button>
+<button onclick="mode='end'">Fim ônibus</button>
+<button onclick="mode='drop'">Seu drop</button>
+
+<div class="info" id="info"></div>
+
+<canvas id="map" width="900" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById("map");
+const ctx = canvas.getContext("2d");
+
+let mode = "start";
+
+let busStart = null;
+let busEnd = null;
+let drop = null;
+
+canvas.addEventListener("click", (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  if (mode === "start") busStart = {x,y};
+  if (mode === "end") busEnd = {x,y};
+  if (mode === "drop") drop = {x,y};
+
+  draw();
+});
+
+function distance(a, b){
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+// 🔥 PROJEÇÃO REAL NA LINHA DO ÔNIBUS
+function projectionPoint(A, B, P){
+  const APx = P.x - A.x;
+  const APy = P.y - A.y;
+
+  const ABx = B.x - A.x;
+  const ABy = B.y - A.y;
+
+  const ab2 = ABx*ABx + ABy*ABy;
+  const ap_ab = APx*ABx + APy*ABy;
+
+  const t = ap_ab / ab2;
+
+  return {
+    x: A.x + ABx * t,
+    y: A.y + ABy * t
+  };
+}
+
+// 🔥 CÁLCULO REALISTA DE SALTO
+function calculateJump(){
+  if (!busStart || !busEnd || !drop) return null;
+
+  const proj = projectionPoint(busStart, busEnd, drop);
+
+  const dist = distance(proj, drop);
+
+  // ajuste baseado na distância (simula tempo de queda)
+  const factor = 0.35;
+
+  return {
+    x: proj.x - (busEnd.x - busStart.x) * factor,
+    y: proj.y - (busEnd.y - busStart.y) * factor
+  };
+}
+
+// 🪂 GLIDER (mais preciso)
+function calculateGlider(){
+  if (!drop || !busStart) return null;
+
+  const d = distance(busStart, drop);
+
+  const offset = Math.min(120, d * 0.25);
+
+  return {
+    x: drop.x - offset,
+    y: drop.y - offset
+  };
+}
+
+function drawPoint(p, color){
+  if (!p) return;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, 6, 0, Math.PI*2);
+  ctx.fill();
+}
+
+function drawLine(a, b, color){
+  if (!a || !b) return;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
+  ctx.stroke();
+}
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  drawLine(busStart, busEnd, "yellow");
+
+  drawPoint(busStart, "blue");
+  drawPoint(busEnd, "purple");
+  drawPoint(drop, "red");
+
+  const jump = calculateJump();
+  const glide = calculateGlider();
+
+  drawPoint(jump, "orange");
+  drawPoint(glide, "green");
+
+  drawLine(jump, drop, "white");
+
+  if(jump && glide){
+    document.getElementById("info").innerText =
+      "🟠 Salte aqui | 🟢 Abra o glider";
+  }
+}
+
+</script>
+
+</body>
+</html>
